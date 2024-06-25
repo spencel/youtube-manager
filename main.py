@@ -1,18 +1,22 @@
 
+import json
 import os
 import pickle
+import google.auth.transport.requests
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 
+
 scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
+
 
 def authenticate():
     # Disable OAuthlib's HTTPS verification when running locally.
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
     
     # Specify the path to your client_secrets.json file
-    client_secrets_file = "client_secret_1034812063898-4l93lat3v5jivnhni9kff5554j9ko20m.apps.googleusercontent.com.json"
+    client_secrets_file = "client_secret_1034812063898-196shud6ln4n9tio94dfd46t14q6a85j.apps.googleusercontent.com.json"
     
     # Check if token.pickle file exists
     credentials = None
@@ -23,17 +27,18 @@ def authenticate():
     # If there are no (valid) credentials available, let the user log in.
     if not credentials or not credentials.valid:
         if credentials and credentials.expired and credentials.refresh_token:
-            credentials.refresh(Request())
+            credentials.refresh(requests.Request())
         else:
-            flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+            flow_ins = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
                 client_secrets_file, scopes)
-            credentials = flow.run_local_server(port=0)
+            credentials = flow_ins.run_local_server(port=0)
         
         # Save the credentials for the next run
         with open("token.pickle", "wb") as token:
             pickle.dump(credentials, token)
     
     return googleapiclient.discovery.build("youtube", "v3", credentials=credentials)
+
 
 def get_playlist_id_by_title(youtube, title):
     page_token = None
@@ -57,10 +62,12 @@ def get_playlist_id_by_title(youtube, title):
     
     return None
 
+
 def delete_playlist(youtube, playlist_id):
     youtube.playlists().delete(
         id=playlist_id
     ).execute()
+
 
 def create_playlist(youtube, title, description):
 
@@ -80,21 +87,26 @@ def create_playlist(youtube, title, description):
 
     return playlists_insert_response['id']
 
+
 def add_videos_to_playlist(youtube, playlist_id, video_ids):
     # Add videos to the playlist
     for video_id in video_ids:
-        youtube.playlistItems().insert(
-            part='snippet',
-            body=dict(
-                snippet=dict(
-                    playlistId=playlist_id,
-                    resourceId=dict(
-                        kind='youtube#video',
-                        videoId=video_id
+        try:
+            youtube.playlistItems().insert(
+                part='snippet',
+                body=dict(
+                    snippet=dict(
+                        playlistId=playlist_id,
+                        resourceId=dict(
+                            kind='youtube#video',
+                            videoId=video_id
+                        )
                     )
                 )
-            )
-        ).execute()
+            ).execute()
+        except:
+            raise Exception(f'Video ID ({video_id}) not found.')
+
 
 if __name__ == '__main__':
 
@@ -126,9 +138,10 @@ if __name__ == '__main__':
         f.write(playlist_id)
 
     # List of video IDs to add to the playlist
-    video_ids = ['kRSZ5_eIGNI','uFH8it0VBcs','a1vw1dqvzX4','B-QTmMjNQEw','zaSP6qAiqk0','tz82xbLvK_k','XH4pNIF32L8','JPu_aqoeXxM','8RmlH2X51Ic','a545Gv3jGzg','kcOob03cibA','Rw5biVUNTd8','LmBDru41aws','3YL_j4BBCnY','VdVpXGpuwCw','mLUguXpUIb0','4nrI88fmc-I','fDJf232023M','Yu9ykgGUm1w','cjUPVKEN9tI','bKpsUU6SgSo','abDT1DcskMA','gZDE8UGVQyU','gmyG7pHgN8U','-kQowIsJJR4','rMudHClToL0','RFaMRR0Ys9Q','gECmuiQhbOQ','NrB5bL1wqwk','e1qqjX3sjwE','WM3RRVuwf6k','7tMfTk-rYcI','PXDq27OxTkc','qdUSITnZd_0','UNRJ1KH0uf4','1C7m3EdFfDQ','DT711RYmZtg','IJiHDmyhE1A','NR3C-J1HezM','j8YnSgiGuJs','yPDNA-5Sqqc','wpsu8UO8gKQ','bEVY-3vm-pk','7lEB7V-KIb0','ODPPV_GTpXA','irgZYu3dKIg','7y_W6XHFfFc','_liy8WAWsxw','ThVy861W6uc']
+    video_ids = json.load(open('playlist.json'))
 
     # Add videos to the playlist
+    
     add_videos_to_playlist(youtube, playlist_id, video_ids)
     print(f'Videos added to the playlist.')
 

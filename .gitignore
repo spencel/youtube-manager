@@ -162,5 +162,6 @@ cython_debug/
 #.idea/
 
 
+playlist.json
 token.pickle
 *.apps.googleusercontent.com.json
